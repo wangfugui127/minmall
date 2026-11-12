@@ -55,13 +55,21 @@ public class ActivityService {
   }
 
   public Map<String, Object> page(boolean admin, int page, int size, String status) {
+    return page(admin, page, size, status, null);
+  }
+
+  public Map<String, Object> page(
+      boolean admin, int page, int size, String status, String keyword) {
     page = Math.max(1, page);
     size = Values.size(size);
+    keyword = keyword == null || keyword.isBlank() ? null : keyword.strip();
+    if (keyword != null && keyword.length() > 50) throw BusinessException.bad("关键词过长");
     var result =
         activityMapper.findPage(
             new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, size),
             admin,
-            status);
+            status,
+            keyword);
     return Map.of(
         "items",
         MapperRows.list(result.getRecords()),

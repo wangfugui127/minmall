@@ -274,8 +274,15 @@ function search() {
       <div class="admin-toolbar">
         <input
           v-model="keyword"
-          :placeholder="section === 'orders' ? '按完整订单号查询' : '搜索商品名称'"
+          :placeholder="
+            section === 'orders'
+              ? '按完整订单号查询'
+              : section === 'activities'
+                ? '搜索活动标题或商品名称'
+                : '搜索商品名称'
+          "
           aria-label="管理搜索"
+          @keyup.enter="section === 'activities' && search()"
         /><el-select
           v-if="section !== 'activities'"
           v-model="status"

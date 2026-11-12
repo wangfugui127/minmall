@@ -1323,4 +1323,102 @@ class CommerceIT {
           assertTrue(clock.now().isAfter(first));
         });
   }
+
+  @Test
+  void adminActivitySearchMatchesTitleOrProductAndKeepsFilteredPagination() throws Exception {
+    Instant start = db.now().plusSeconds(60);
+    Map<String, Object> body =
+        new HashMap<>(
+            Map.of(
+                "productId",
+                product,
+                "title",
+                "杯子专场",
+                "activityPriceFen",
+                990,
+                "plannedStock",
+                1,
+                "startAt",
+                start.toString(),
+                "endAt",
+                start.plusSeconds(3600).toString()));
+    var first = activities.create(body, admin);
+    body.put("title", "杯子返场");
+    var second = activities.create(body, admin);
+    db.update("UPDATE seckill_activity SET status='ENDED' WHERE id=?", second.get("id"));
+    long umbrella = newProduct("轻便雨伞", 2);
+    body.put("productId", umbrella);
+    body.put("title", "雨天折扣");
+    var third = activities.create(body, admin);
+    String adminToken = Values.id();
+    redis
+        .opsForValue()
+        .set(
+            "auth:session:" + Values.hash(adminToken), Long.toString(admin), Duration.ofMinutes(5));
+    String authorization = "Bearer " + adminToken;
+
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", authorization)
+                .param("keyword", "杯子")
+                .param("size", "1")
+                .param("page", "1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(2))
+        .andExpect(jsonPath("$.data.items.length()").value(1))
+        .andExpect(jsonPath("$.data.items[0].id").value(second.get("id")));
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", authorization)
+                .param("keyword", "杯子")
+                .param("size", "1")
+                .param("page", "2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(2))
+        .andExpect(jsonPath("$.data.items[0].id").value(first.get("id")));
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", authorization)
+                .param("keyword", "  雨伞  "))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(1))
+        .andExpect(jsonPath("$.data.items[0].id").value(third.get("id")));
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", authorization)
+                .param("keyword", "杯子")
+                .param("status", "DRAFT"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(1))
+        .andExpect(jsonPath("$.data.items[0].id").value(first.get("id")));
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", authorization)
+                .param("keyword", "不存在的活动"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(0))
+        .andExpect(jsonPath("$.data.items.length()").value(0));
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", authorization)
+                .param("keyword", "' OR 1=1 --"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(0));
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", authorization)
+                .param("keyword", "   "))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(3));
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", authorization)
+                .param("keyword", "长".repeat(51)))
+        .andExpect(status().isBadRequest());
+    mvc.perform(
+            get("/api/v1/admin/seckill-activities")
+                .header("Authorization", "Bearer " + token)
+                .param("keyword", "杯子"))
+        .andExpect(status().isForbidden());
+  }
 }

@@ -122,11 +122,14 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
         + " seckill_activity a JOIN product p ON p.id=a.product_id WHERE 1=1",
     "<if test='!admin'> AND a.status &lt;&gt; 'DRAFT'</if>",
     "<if test='status != null and status.trim() != &quot;&quot;'> AND a.status=#{status}</if>",
+    "<if test='keyword != null'> AND (a.title LIKE CONCAT('%',#{keyword},'%') OR p.name LIKE"
+        + " CONCAT('%',#{keyword},'%'))</if>",
     "ORDER BY a.id DESC",
     "</script>"
   })
   IPage<Map<String, Object>> findPage(
       IPage<Map<String, Object>> page,
       @Param("admin") boolean admin,
-      @Param("status") String status);
+      @Param("status") String status,
+      @Param("keyword") String keyword);
 }

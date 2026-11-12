@@ -46,8 +46,9 @@ public class ActivityController {
   public ApiResponse<?> adminList(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,
-      @RequestParam(required = false) String status) {
-    return ApiResponse.ok(s.page(true, page, size, status));
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String keyword) {
+    return ApiResponse.ok(s.page(true, page, size, status, keyword));
   }
 
   @PostMapping("/admin/seckill-activities")
